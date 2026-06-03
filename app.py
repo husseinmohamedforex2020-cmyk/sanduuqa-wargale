@@ -1,10 +1,9 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 import urllib.parse
 
-# 1. Page & Layout Config (Mobile Friendly)
+# 1. Page & Layout Config
 st.set_page_config(page_title="Sanduuqa Wargale", page_icon="💰", layout="centered")
 
 # --- LOGIN APP ---
@@ -16,28 +15,38 @@ if not st.session_state.logged_in:
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Gal Nidaamka", use_container_width=True):
-        if username == "admin" and password == "wargale2026": # Password-kaaga halkaan ka bedelo
+        if username == "admin" and password == "wargale2026":
             st.session_state.logged_in = True
             st.rerun()
         else:
             st.error("Username ama Password waa khalad!")
     st.stop()
 
-# --- XIRIIRKA GOOGLE DRIVE (SHEETS) ---
-# Nidaamku wuxuu si toos ah u xiriirayaa Google Sheet-ka loo fasaxay
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# Soo akhrinta xogta hadda jirta
+# --- XIRIIRKA GOOGLE SHEETS (VIA GSPREAD) ---
+# Waxaan u xiriirineynaa hab casri ah oo wax-qoris iyo aqrinba ogol
 try:
-    df_members = conn.read(worksheet="Members", ttl=0)
-except Exception:
+    from google.oauth2.service_account import Credentials
+    import gspread
+    
+    # Helitaanka ogolaanshaha Secrets-ka nidaamka
+    creds_dict = st.secrets["gspread_credentials"]
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    gc = gspread.authorize(creds)
+    
+    # Furitaanka Sheet-ka (Ku qor magaca saxda ah ee Google Sheet-kaaga halkan)
+    # Sheet-ka waa in lala share-gareeyaa "client_email"-ka ku jiri doona secrets-ka
+    sh = gc.open("Sanduuqa_Wargale") 
+    worksheet_members = sh.worksheet("Members")
+    worksheet_tx = sh.worksheet("Transactions")
+    
+    # Soo akhrinta xogta hadda jirta
+    df_members = pd.DataFrame(worksheet_members.get_all_records())
+    df_tx = pd.DataFrame(worksheet_tx.get_all_records())
+except Exception as e:
+    st.error("Cillad dhanka isku xirka Google Drive ah: Fadlan hubi Secrets-kaaga.")
     df_members = pd.DataFrame(columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
-
-try:
-    df_tx = conn.read(worksheet="Transactions", ttl=0)
-except Exception:
     df_tx = pd.DataFrame(columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
-
 
 # --- NAVIGATION MENU ---
 menu = st.radio("MENU:", ["📊 Dashboard", "📝 Add Member", "💵 Gali Lacag", "📋 Liiska & WhatsApp"], horizontal=True)
@@ -48,9 +57,7 @@ if menu == "📊 Dashboard":
     
     total_members = len(df_members)
     
-    # Xisaabinta lacagaha horta la hubiyo haddii xog jirto
-    if not df_tx.empty and 'Type' in df_tx.columns and 'Amount' in df_tx.columns:
-        # Hubi in column-ka Amount uu yahay nambar
+    if not df_tx.empty and 'Amount' in df_tx.columns:
         df_tx['Amount'] = pd.to_numeric(df_tx['Amount'], errors='coerce').fillna(0)
         total_deposit = df_tx[df_tx['Type'] == 'Deposit']['Amount'].sum()
         total_expense = df_tx[df_tx['Type'] == 'Expense']['Amount'].sum()
@@ -60,7 +67,6 @@ if menu == "📊 Dashboard":
         
     current_balance = total_deposit - total_expense
 
-    # Muuqaalka Dashboard-ka ee Mobile-ka
     st.metric(label="👥 Wadarta Tolka Diiwāngashan", value=f"{total_members} Qof")
     st.metric(label="📥 Total Deposit (Lacagta Gashto)", value=f"${total_deposit:,.2f}", delta="Guud ahaan")
     st.metric(label="📤 Total Expense (Lacagta Baxday)", value=f"${total_expense:,.2f}", delta="- Kharash", delta_color="inverse")
@@ -83,17 +89,14 @@ elif menu == "📝 Add Member":
                 full_name = f"{m_1} {m_2} {m_3}".strip()
                 new_id = int(df_members['ID'].max()) + 1 if not df_members.empty else 1
                 
-                # Diyaarinta xogta cusub
-                new_row = pd.DataFrame([[new_id, full_name, degmo, xaafad, tel]], columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
-                df_members = pd.concat([df_members, new_row], ignore_index=True)
-                
-                # Toos ugu qor Google Sheet-ka ku jira Drive-ka
-                conn.update(worksheet="Members", data=df_members)
+                # Toos ugu qor safka cusub Google Sheet-ka
+                worksheet_members.append_row([int(new_id), full_name, degmo, xaafad, str(tel)])
                 st.success(f"Si guul leh ayaa loo kaydiyay: {full_name}")
+                st.rerun()
             else:
                 st.error("Fadlan Magaca iyo Telefoonka waa muhiim!")
 
-# --- 3. GALI LACAG (DEPOSIT / EXPENSE & HISTORICAL DATA) ---
+# --- 3. GALI LACAG ---
 elif menu == "💵 Gali Lacag":
     st.subheader("Diiwaangali Lacag (Hore ama Hada)")
     if df_members.empty:
@@ -103,26 +106,18 @@ elif menu == "💵 Gali Lacag":
             member_choice = st.selectbox("Dooro Xubinta Tolka", df_members['Magaca'].tolist())
             nooca = st.radio("Nooca Lacagta", ["Deposit", "Expense"], horizontal=True)
             lacag = st.number_input("Cadadka Lacagta ($)", min_value=0.0, step=1.0)
-            
-            # Manual Date Entry ee xogta sanadihii hore
-            date_hore = st.date_input("Taariikhda (Si manual ah u dooro haday hore tahay)", datetime.now())
-            faahfaahin = st.text_input("Note (Ex: Qaaraanka 2024, Furitaan xafiis)")
+            date_hore = st.date_input("Taariikhda (Manual)", datetime.now())
+            faahfaahin = st.text_input("Note (Ex: Qaaraanka 2024)")
             
             if st.form_submit_button("Xaqiiji & Kaydi", use_container_width=True):
                 if lacag > 0:
                     m_id = df_members[df_members['Magaca'] == member_choice]['ID'].values[0]
-                    
-                    # Diyaarinta xogta lacagta
-                    new_tx_row = pd.DataFrame([[str(date_hore), int(m_id), nooca, lacag, faahfaahin]], columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
-                    df_tx = pd.concat([df_tx, new_tx_row], ignore_index=True)
-                    
-                    # Toos ugu qor Google Sheet-ka ku jira Drive-ka
-                    conn.update(worksheet="Transactions", data=df_tx)
-                    st.success(f"Waxaa Drive-ka lagu xareeyay ${lacag} oo {nooca} ah!")
-                else:
-                    st.error("Cadadka lacagta waa inuu ka weyn yahay 0!")
+                    # Toos ugu qor Safka dambe ee sheet-ka Transactions
+                    worksheet_tx.append_row([str(date_hore), int(m_id), nooca, float(lacag), faahfaahin])
+                    st.success(f"Waxaa la xareeyay ${lacag} oo {nooca} ah!")
+                    st.rerun()
 
-# --- 4. LIISKA & MAAMULKA (DELETE & WHATSAPP) ---
+# --- 4. LIISKA & MAAMULKA ---
 elif menu == "📋 Liiska & WhatsApp":
     st.subheader("Maamulka Tolka & Xusuusinta")
     if df_members.empty:
@@ -133,16 +128,14 @@ elif menu == "📋 Liiska & WhatsApp":
                 st.write(f"📍 Degmada: {row['Degmada']} | Xaafada: {row['Xaafada']}")
                 st.write(f"📞 Tel: {row['Telefoonka']}")
                 
-                # 1. WhatsApp Automated Message
                 msg = f"Asc {row['Magaca']}, nidaamka Sanduuqa Wargale wuxuu kuu xasuusinayaa qaaraanka bilaha ah ee dib ula soo dhacday. Fadlan ku soo shub xisaabta sanduuqa. Mahadsanid."
                 url = f"https://wa.me/{row['Telefoonka']}?text={urllib.parse.quote(msg)}"
                 st.markdown(f"[📢 Soo dir Xusuusin WhatsApp]({url})")
                 
                 st.write("---")
-                # 2. Toos uga tirtir Google Drive-ka (Delete Button)
                 if st.button(f"Masax Xubintaan ❌", key=f"del_{row['ID']}"):
-                    df_members = df_members[df_members['ID'] != row['ID']]
-                    # Haddii uu lacag lahaa na xiriirkeeda waa la goyn karaa (ikhiyaari)
-                    conn.update(worksheet="Members", data=df_members)
+                    # Ka tirtir safka Google Sheets-ka
+                    cell = worksheet_members.find(str(row['Magaca']))
+                    worksheet_members.delete_rows(cell.row)
                     st.success(f"Waa laga tirtiray Drive-ka!")
                     st.rerun()
