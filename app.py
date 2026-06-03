@@ -35,7 +35,7 @@ try:
     
     # KAN WAA HABKA CUSUB: Waxaynu ku furaynaa LINK-GA tooska ah si uusan error u dhicin
     # Nuqul ka bixi linkiga rasmiga ah ee Google Sheet-kaaga oo dhex geli halkan hoose:
-    sheet_url = "https://docs.google.com/spreadsheets/d/1_hGit5rDff32GsFwMqfg21ZU-va8ql-4Dw4EejsjcDY/edit"
+    sheet_url = "https://docs.google.com/spreadsheets/d/1_hGit5rDff32GsFwMqFg21ZU-va8qI-4Dw4eEjsjcDY/edit?gid=0#gid=0"
     sh = gc.open_by_url(sheet_url)
     
     worksheet_members = sh.worksheet("Members")
