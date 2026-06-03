@@ -33,9 +33,8 @@ try:
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     gc = gspread.authorize(creds)
     
-    # KAN WAA HABKA CUSUB: Waxaynu ku furaynaa LINK-GA tooska ah si uusan error u dhicin
-    # Nuqul ka bixi linkiga rasmiga ah ee Google Sheet-kaaga oo dhex geli halkan hoose:
-    sheet_url = "https://docs.google.com/spreadsheets/d/1_hGit5rDff32GsFwMqFg21ZU-va8qI-4Dw4eEjsjcDY/edit?gid=0#gid=0"
+    # LINK-GAAGA RASMIGA AH EE SAXDA AH:
+    sheet_url = "https://docs.google.com/spreadsheets/d/1_hGit5rDff32GsFwMqFg21ZU-va8qI-4Dw4EejsjcDY/edit"
     sh = gc.open_by_url(sheet_url)
     
     worksheet_members = sh.worksheet("Members")
