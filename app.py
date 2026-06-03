@@ -23,7 +23,6 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- XIRIIRKA GOOGLE SHEETS (VIA GSPREAD) ---
-# Waxaan u xiriirineynaa hab casri ah oo wax-qoris iyo aqrinba ogol
 try:
     from google.oauth2.service_account import Credentials
     import gspread
@@ -34,9 +33,11 @@ try:
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     gc = gspread.authorize(creds)
     
-    # Furitaanka Sheet-ka (Ku qor magaca saxda ah ee Google Sheet-kaaga halkan)
-    # Sheet-ka waa in lala share-gareeyaa "client_email"-ka ku jiri doona secrets-ka
-    sh = gc.open("Sanduuqa_Wargale") 
+    # KAN WAA HABKA CUSUB: Waxaynu ku furaynaa LINK-GA tooska ah si uusan error u dhicin
+    # Nuqul ka bixi linkiga rasmiga ah ee Google Sheet-kaaga oo dhex geli halkan hoose:
+    sheet_url = "https://docs.google.com/spreadsheets/d/1_hGit5rDff32GsFwMqfg21ZU-va8ql-4Dw4EejsjcDY/edit"
+    sh = gc.open_by_url(sheet_url)
+    
     worksheet_members = sh.worksheet("Members")
     worksheet_tx = sh.worksheet("Transactions")
     
@@ -44,7 +45,7 @@ try:
     df_members = pd.DataFrame(worksheet_members.get_all_records())
     df_tx = pd.DataFrame(worksheet_tx.get_all_records())
 except Exception as e:
-    st.error("Cillad dhanka isku xirka Google Drive ah: Fadlan hubi Secrets-kaaga.")
+    st.error(f"⚠️ Cillad dhanka isku xirka Google Drive ah: Fadlan hubi in Email-ka robot-ka uu Editor ka yahay Sheet-ka.")
     df_members = pd.DataFrame(columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
     df_tx = pd.DataFrame(columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
 
@@ -134,7 +135,6 @@ elif menu == "📋 Liiska & WhatsApp":
                 
                 st.write("---")
                 if st.button(f"Masax Xubintaan ❌", key=f"del_{row['ID']}"):
-                    # Ka tirtir safka Google Sheets-ka
                     cell = worksheet_members.find(str(row['Magaca']))
                     worksheet_members.delete_rows(cell.row)
                     st.success(f"Waa laga tirtiray Drive-ka!")
