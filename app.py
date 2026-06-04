@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import urllib.parse
-import json
 from google.oauth2.service_account import Credentials
 import gspread
 
@@ -28,10 +27,10 @@ if not st.session_state.logged_in:
 # --- INITIALIZE VARIABLES ---
 connection_success = False
 
-# --- FRESH DIRECT JSON CONNECTION ---
+# --- FRESH DIRECT CONNECTION ---
 try:
-    # Ku akhrinta Secrets-ka qaabka rasmiga ah ee JSON
-    creds_dict = dict(st.secrets)
+    # Ku akhrinta Secrets-ka qaabka TOML-ka ee saxda ah
+    creds_dict = st.secrets["gspread_credentials"]
     
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
@@ -129,7 +128,7 @@ elif menu == "💵 Gali Lacag":
                 if lacag > 0 and connection_success and worksheet_tx is not None:
                     m_id = df_members[df_members['Magaca'] == member_choice]['ID'].values[0]
                     worksheet_tx.append_row([str(date_hore), int(m_id), nooca, float(lacag), faahfaahin])
-                    st.success(f"Waxaa la xareeyay ${lacag} oo {nooca} ah!")
+                    st.success(f"Waxaa la xareeyay ${lacag} oo {nooca} Bh!")
                     st.rerun()
 
 # --- 4. LIISKA & MAAMULKA ---
