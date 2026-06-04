@@ -23,21 +23,30 @@ if not st.session_state.logged_in:
             st.error("Username ama Password waa khalad!")
     st.stop()
 
-# --- NEW CLEAN GSHEETS CONNECTION ---
+# --- INITIALIZE VARIABLES ---
+connection_success = False
+
+# --- NEW FRESH GSHEETS CONNECTION ---
 try:
-    # Habka ugu cusub uguna sahlan ee Streamlit u xiriiriyo Google Sheets
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Soo akhrinta xaashiyaha adoo isticmaalaya Magacyada rasmiga ah ee tab-ka hoose
+    # Soo akhrinta xaashiyaha cusub
     df_members = conn.read(worksheet="Members", ttl=0)
     df_tx = conn.read(worksheet="Transactions", ttl=0)
     
-    # Sifaynta xogta madhan haddii uu safku eber yahay
+    # Sifaynta khadadka eberka ah
     df_members = df_members.dropna(how="all")
     df_tx = df_tx.dropna(how="all")
+    
+    # Hubinta tiirarka haddii uu sheet-ku cusub yahay oo madhan yahay
+    if df_members.empty or 'ID' not in df_members.columns:
+        df_members = pd.DataFrame(columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
+    if df_tx.empty or 'Amount' not in df_tx.columns:
+        df_tx = pd.DataFrame(columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
+        
     connection_success = True
 except Exception as e:
-    st.error("⚠️ Cilad dhanka isku xirka Google Sheets ah: Fadlan hubi Secrets-ka ama Link-ga shiddaalka.")
+    st.error("⚠️ Cilad dhanka isku xirka Google Sheets ah: Fadlan hubi Secrets-ka ama in Email-ka robot-ka uu Editor ka yahay Sheet-ka cusub.")
     df_members = pd.DataFrame(columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
     df_tx = pd.DataFrame(columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
     connection_success = False
@@ -83,12 +92,14 @@ elif menu == "📝 Add Member":
                 full_name = f"{m_1} {m_2} {m_3}".strip()
                 
                 if not df_members.empty and 'ID' in df_members.columns:
-                    new_id = int(pd.to_numeric(df_members['ID'], errors='coerce').max()) + 1
+                    try:
+                        new_id = int(pd.to_numeric(df_members['ID'], errors='coerce').max()) + 1
+                    except:
+                        new_id = len(df_members) + 1
                 else:
                     new_id = 1
                 
                 if connection_success:
-                    # Abuurista safka cusub iyo u dirista Google Sheet-ka
                     new_row = pd.DataFrame([[int(new_id), full_name, degmo, xaafad, str(tel)]], columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
                     df_updated = pd.concat([df_members, new_row], ignore_index=True)
                     conn.update(worksheet="Members", data=df_updated)
