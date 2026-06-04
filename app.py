@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import urllib.parse
-from streamlit_gsheets import GSheetsConnection
+import json
+from google.oauth2.service_account import Credentials
+import gspread
 
 # 1. Page & Layout Config
 st.set_page_config(page_title="Sanduuqa Wargale", page_icon="💰", layout="centered")
@@ -26,24 +28,26 @@ if not st.session_state.logged_in:
 # --- INITIALIZE VARIABLES ---
 connection_success = False
 
-# --- NEW FRESH GSHEETS CONNECTION ---
+# --- FRESH DIRECT JSON CONNECTION ---
 try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
+    # Ku akhrinta Secrets-ka qaabka rasmiga ah ee JSON
+    creds_dict = dict(st.secrets)
     
-    # Soo akhrinta xaashiyaha cusub
-    df_members = conn.read(worksheet="Members", ttl=0)
-    df_tx = conn.read(worksheet="Transactions", ttl=0)
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    gc = gspread.authorize(creds)
     
-    # Sifaynta khadadka eberka ah
-    df_members = df_members.dropna(how="all")
-    df_tx = df_tx.dropna(how="all")
+    # LINK-GAAGA CUSUB EE NADIIFKA AH
+    sheet_url = "https://docs.google.com/spreadsheets/d/10g6hDn_OxyyOthefSoZ0M6s3Rr3rZZrRpdPZUnkJYIc/edit"
+    sh = gc.open_by_url(sheet_url)
     
-    # Hubinta tiirarka haddii uu sheet-ku cusub yahay oo madhan yahay
-    if df_members.empty or 'ID' not in df_members.columns:
-        df_members = pd.DataFrame(columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
-    if df_tx.empty or 'Amount' not in df_tx.columns:
-        df_tx = pd.DataFrame(columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
-        
+    worksheet_members = sh.worksheet("Members")
+    worksheet_tx = sh.worksheet("Transactions")
+    
+    # Soo akhrinta xogta hadda jirta
+    df_members = pd.DataFrame(worksheet_members.get_all_records())
+    df_tx = pd.DataFrame(worksheet_tx.get_all_records())
+    
     connection_success = True
 except Exception as e:
     st.error("⚠️ Cilad dhanka isku xirka Google Sheets ah: Fadlan hubi Secrets-ka ama in Email-ka robot-ka uu Editor ka yahay Sheet-ka cusub.")
@@ -99,10 +103,8 @@ elif menu == "📝 Add Member":
                 else:
                     new_id = 1
                 
-                if connection_success:
-                    new_row = pd.DataFrame([[int(new_id), full_name, degmo, xaafad, str(tel)]], columns=['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka'])
-                    df_updated = pd.concat([df_members, new_row], ignore_index=True)
-                    conn.update(worksheet="Members", data=df_updated)
+                if connection_success and worksheet_members is not None:
+                    worksheet_members.append_row([int(new_id), full_name, degmo, xaafad, str(tel)])
                     st.success(f"Si guul leh ayaa loo kaydiyay: {full_name}")
                     st.rerun()
                 else:
@@ -124,11 +126,9 @@ elif menu == "💵 Gali Lacag":
             faahfaahin = st.text_input("Note (Ex: Qaaraanka 2024)")
             
             if st.form_submit_button("Xaqiiji & Kaydi", use_container_width=True):
-                if lacag > 0 and connection_success:
+                if lacag > 0 and connection_success and worksheet_tx is not None:
                     m_id = df_members[df_members['Magaca'] == member_choice]['ID'].values[0]
-                    new_tx = pd.DataFrame([[str(date_hore), int(m_id), nooca, float(lacag), faahfaahin]], columns=['Date', 'Member_ID', 'Type', 'Amount', 'Note'])
-                    df_tx_updated = pd.concat([df_tx, new_tx], ignore_index=True)
-                    conn.update(worksheet="Transactions", data=df_tx_updated)
+                    worksheet_tx.append_row([str(date_hore), int(m_id), nooca, float(lacag), faahfaahin])
                     st.success(f"Waxaa la xareeyay ${lacag} oo {nooca} ah!")
                     st.rerun()
 
@@ -149,8 +149,8 @@ elif menu == "📋 Liiska & WhatsApp":
                 
                 st.write("---")
                 if st.button(f"Masax Xubintaan ❌", key=f"del_{row.get('ID', idx)}"):
-                    if connection_success:
-                        df_members_updated = df_members[df_members['Magaca'] != row['Magaca']]
-                        conn.update(worksheet="Members", data=df_members_updated)
+                    if connection_success and worksheet_members is not None:
+                        cell = worksheet_members.find(str(row['Magaca']))
+                        worksheet_members.delete_rows(cell.row)
                         st.success(f"Waa laga tirtiray Drive-ka!")
                         st.rerun()
