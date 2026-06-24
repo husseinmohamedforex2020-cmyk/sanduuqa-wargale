@@ -55,7 +55,7 @@ except Exception as e:
     connection_success = False
 
 # --- NAVIGATION MENU ---
-menu = st.radio("MENU:", ["📊 Dashboard", "📝 Add Member", "💵 Gali Lacag", "📋 Liiska & WhatsApp"], horizontal=True)
+menu = st.radio("MENU:", ["📊 Dashboard", "📝 Add Member", "💵 Gali Lacag", "📅 Gali Bile (Manual)", "📋 Liiska & WhatsApp"], horizontal=True)
 
 # --- 1. DASHBOARD ---
 if menu == "📊 Dashboard":
@@ -111,7 +111,7 @@ elif menu == "📝 Add Member":
             else:
                 st.error("Fadlan Magaca iyo Telefoonka waa muhiim!")
 
-# --- 3. GALI LACAG ---
+# --- 3. GALI LACAG (XUBNAHA) ---
 elif menu == "💵 Gali Lacag":
     st.subheader("Diiwaangali Lacag (Hore ama Hada)")
     if df_members.empty:
@@ -131,7 +131,48 @@ elif menu == "💵 Gali Lacag":
                     st.success(f"Waxaa la xareeyay ${lacag} oo {nooca} Bh!")
                     st.rerun()
 
-# --- 4. LIISKA & MAAMULKA ---
+# --- 4. GALI BILE (MANUAL DEPOSIT & EXPENSE) ---
+elif menu == "📅 Gali Bile (Manual)":
+    st.subheader("Diiwaangelinta Bile ah (Deposit / Expense)")
+    st.caption("Qaybtani waxay kuu ogolaanaysaa inaad lacag xarayso adigoo dooranaya bisha iyo sanadka, oon xubnaha ku xirnayn.")
+    
+    with st.form("manual_billing_form", clear_on_submit=True):
+        # Liiska bilaha iyo sanadaha
+        bilaha = ["Janaayo", "Feberaayo", "Maarso", "Abriil", "Maajo", "Juun", 
+                  "Luulyo", "Agoosto", "Sebtembar", "Oktoobar", "Nofeembar", "Diisambar"]
+        current_year = datetime.now().year
+        sanadaha = [str(y) for y in range(current_year - 2, current_year + 3)]
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            dooro_bisha = st.selectbox("Dooro Bisha", bilaha)
+        with col2:
+            dooro_sanadka = st.selectbox("Dooro Sanadka", sanadaha)
+            
+        nooca_manual = st.radio("Nooca Lacagta (Manual)", ["Deposit", "Expense"], horizontal=True)
+        lacag_manual = st.number_input("Cadadka Lacagta ($)", min_value=0.0, step=1.0)
+        faahfaahin_manual = st.text_input("Faahfaahinta / Note (Ex: Lacag guud ee bisha)")
+        
+        if st.form_submit_button("Xaqiiji & Kaydi Bile", use_container_width=True):
+            if lacag_manual > 0 and connection_success and worksheet_tx is not None:
+                # Maadaama ay tahay manual, ma jiro Member_ID gaar ah, waxaan u qoraynaa "MANUAL"
+                m_id_manual = "MANUAL"
+                
+                # Kulmi faahfaahinta si ay ugu jirto bisha iyo sanadka
+                note_final = f"[{dooro_bisha} - {dooro_sanadka}] {faahfaahin_manual}".strip()
+                date_today = datetime.now().strftime("%Y-%m-%d")
+                
+                # Ku darista xaashida Google Sheets (Transactions)
+                worksheet_tx.append_row([str(date_today), str(m_id_manual), nooca_manual, float(lacag_manual), note_final])
+                
+                st.success(f"Si guul leh ayaa loo kaydiyay {nooca_manual} bisha {dooro_bisha}/{dooro_sanadka} oo dhan ${lacag_manual}!")
+                st.rerun()
+            elif lacag_manual <= 0:
+                st.error("Fadlan geli lacag ka badan $0!")
+            else:
+                st.error("Xiriirka Google Sheet-ka ma jiro, dib u tijaabi.")
+
+# --- 5. LIISKA & MAAMULKA ---
 elif menu == "📋 Liiska & WhatsApp":
     st.subheader("Maamulka Tolka & Xusuusinta")
     if df_members.empty:
