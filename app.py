@@ -16,7 +16,7 @@ if 'logged_in' not in st.session_state:
 if not st.session_state.logged_in:
     # Muujinta Logada ee Login Page-ka haddii ay jirto
     if os.path.exists("murale.png"):
-        st.image("murale.png", width=120, use_container_width=False)
+        st.image("murale.png", width=120)
         
     st.markdown("<h2 style='color: #1E3A8A;'>🔐 Sanduuqa Wargale</h2>", unsafe_allow_html=True)
     username = st.text_input("Username")
@@ -64,6 +64,8 @@ col_logo, col_title = st.columns([1, 4])
 with col_logo:
     if os.path.exists("murale.png"):
         st.image("murale.png", width=80)
+    elif os.path.exists("Murale.png"): # Hubinta haddii xaraf weyn lagu qoray
+        st.image("Murale.png", width=80)
 with col_title:
     st.markdown("<h2 style='color: #1E3A8A; margin-top: 10px;'>Sanduuqa Wargale</h2>", unsafe_allow_html=True)
 
@@ -85,7 +87,7 @@ if menu == "📊 Dashboard":
         
     current_balance = total_deposit - total_expense
 
-    # --- STYLE CUSUB: HORIZONTAL METRICS (ORANGE LIGHT BACKROUND) ---
+    # --- STYLE CUSUB: HORIZONTAL METRICS ---
     st.markdown(f"""
     <div style="background-color: #FFF3E0; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #FFE0B2;">
         <table style="width:100%; border-collapse: collapse; text-align: center;">
@@ -127,9 +129,16 @@ if menu == "📊 Dashboard":
     else:
         st.info("Ma jirto xog ku filan oo laga sameeyo garaaf.")
 
-    # --- EXPANDER-KA LIISASKA (DEPOSITS & EXPENSES) ---
     st.markdown("---")
     
+    # --- LIISKA XUBNAHA TOLKA (DASHBOARD-KA LAGU SOO DARAY) ---
+    with st.expander("👤 Eeg Liiska Guud ee Xubnaha Tolka (Collapsible)"):
+        if df_members.empty:
+            st.info("Ma jiraan xubno diiwaangashan hadda.")
+        else:
+            st.dataframe(df_members[['ID', 'Magaca', 'Degmada', 'Xaafada', 'Telefoonka', 'Status']], use_container_width=True)
+
+    # --- EXPANDER-KA LIISASKA (DEPOSITS & EXPENSES) ---
     with st.expander("📅 Eeg Liiska Deposit-ka ee Sannad kasta (Collapsible)"):
         if not df_tx.empty:
             df_deposits_only = df_tx[df_tx['Type'] == 'Deposit'].copy()
@@ -257,13 +266,12 @@ elif menu == "📅 Gali Bile (Manual)":
             else:
                 st.error("Xiriirka Google Sheet-ka ma jiro, dib u tijaabi.")
 
-# --- 5. CUSBOONAYSIIN: LIISKA & WHATSAPP (COLLAPSIBLE EXPANDER) ---
+# --- 5. LIISKA & WHATSAPP ---
 elif menu == "📋 Liiska & WhatsApp":
     st.subheader("Maamulka Tolka & Xusuusinta")
     if df_members.empty:
         st.info("Liisku waa maran yahay hadda.")
     else:
-        # Halkan waxaa lagu soo kordhiyay Expander weyn oo xubnaha dhan wada qariyo marka hore
         with st.expander("👤 Eeg Liiska Guud ee Xubnaha Tolka (Collapsible)"):
             for idx, row in df_members.iterrows():
                 status_tag = "🟢 Active" if row.get('Status', 'Active') == 'Active' else "🔴 Inactive"
@@ -276,7 +284,7 @@ elif menu == "📋 Liiska & WhatsApp":
                 st.markdown(f"[📢 Soo dir Xusuusin WhatsApp]({url})")
                 st.markdown("---")
 
-# --- 6. ADMIN PANEL (EDIT / DELETE) ---
+# --- 6. ADMIN PANEL ---
 elif menu == "⚙️ Admin Panel":
     st.markdown("<h2 style='color: #1E3A8A;'>⚙️ Guddiga Maamulka (Admin Panel)</h2>", unsafe_allow_html=True)
     
