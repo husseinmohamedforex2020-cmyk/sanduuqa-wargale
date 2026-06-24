@@ -133,15 +133,15 @@ elif menu == "💵 Gali Lacag":
 
 # --- 4. GALI BILE (MANUAL DEPOSIT & EXPENSE) ---
 elif menu == "📅 Gali Bile (Manual)":
-    st.subheader("Diiwaangelinta Bile ah (Deposit / Expense)")
+    st.subheader("Diiwaengelinta Bile ah (Deposit / Expense)")
     st.caption("Qaybtani waxay kuu ogolaanaysaa inaad lacag xarayso adigoo dooranaya bisha iyo sanadka, oon xubnaha ku xirnayn.")
     
     with st.form("manual_billing_form", clear_on_submit=True):
-        # Liiska bilaha iyo sanadaha
+        # Liiska bilaha iyo sanadaha (Halkan waxaa laga beddelay sanadka si uu 2015 uga bilaawdo)
         bilaha = ["Janaayo", "Feberaayo", "Maarso", "Abriil", "Maajo", "Juun", 
                   "Luulyo", "Agoosto", "Sebtembar", "Oktoobar", "Nofeembar", "Diisambar"]
         current_year = datetime.now().year
-        sanadaha = [str(y) for y in range(current_year - 2, current_year + 3)]
+        sanadaha = [str(y) for y in range(2015, current_year + 3)]
         
         col1, col2 = st.columns(2)
         with col1:
@@ -155,14 +155,11 @@ elif menu == "📅 Gali Bile (Manual)":
         
         if st.form_submit_button("Xaqiiji & Kaydi Bile", use_container_width=True):
             if lacag_manual > 0 and connection_success and worksheet_tx is not None:
-                # Maadaama ay tahay manual, ma jiro Member_ID gaar ah, waxaan u qoraynaa "MANUAL"
                 m_id_manual = "MANUAL"
                 
-                # Kulmi faahfaahinta si ay ugu jirto bisha iyo sanadka
                 note_final = f"[{dooro_bisha} - {dooro_sanadka}] {faahfaahin_manual}".strip()
                 date_today = datetime.now().strftime("%Y-%m-%d")
                 
-                # Ku darista xaashida Google Sheets (Transactions)
                 worksheet_tx.append_row([str(date_today), str(m_id_manual), nooca_manual, float(lacag_manual), note_final])
                 
                 st.success(f"Si guul leh ayaa loo kaydiyay {nooca_manual} bisha {dooro_bisha}/{dooro_sanadka} oo dhan ${lacag_manual}!")
