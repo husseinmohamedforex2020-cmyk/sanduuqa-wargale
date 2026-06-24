@@ -83,28 +83,69 @@ if menu == "📊 Dashboard":
     st.markdown("---")
     st.metric(label="💰 LACAGTA SANDUUQA KU JIRTA (HADA)", value=f"${current_balance:,.2f}")
     
-    # --- CUSBOONAYSIIN: LIISKA DEPOSIT-KA SANAD KASTA ---
+    # --- CUSBOONAYSIIN 1: GRAPHS-KA SANNADAHA (DEPOSIT & EXPENSE) ---
     st.markdown("---")
-    st.markdown("### 📅 Liiska Deposit-ka ee Sannad kasta")
+    st.markdown("### 📈 Shaxda Isbarbardhiga Sannadaha")
+    
     if not df_tx.empty:
-        df_deposits_only = df_tx[df_tx['Type'] == 'Deposit'].copy()
-        if not df_deposits_only.empty:
-            df_deposits_only['Date'] = pd.to_datetime(df_deposits_only['Date'], errors='coerce')
-            df_deposits_only['Sannad'] = df_deposits_only['Date'].dt.year.fillna(2026).astype(int)
-            
-            years = sorted(df_deposits_only['Sannad'].unique(), reverse=True)
-            selected_year = st.selectbox("Dooro Sannadka:", years)
-            
-            df_year = df_deposits_only[df_deposits_only['Sannad'] == selected_year]
-            
-            # Soo bandhig xogta sannadkaas
-            st.dataframe(df_year[['Date', 'Member_ID', 'Amount', 'Note']], use_container_width=True)
-            st.metric(label=f"Wadarta Deposit-ka Sannadkii {selected_year}", value=f"${df_year['Amount'].sum():,.2f}")
-        else:
-            st.info("Wax deposit ah wali lama gelin.")
+        df_charts = df_tx.copy()
+        df_charts['Date'] = pd.to_datetime(df_charts['Date'], errors='coerce')
+        df_charts['Sannad'] = df_charts['Date'].dt.year.fillna(2026).astype(int)
+        
+        # Kooxe xogta marka loo eego Sannadka iyo Nooca Lacagta
+        df_grouped = df_charts.groupby(['Sannad', 'Type'])['Amount'].sum().unstack().fillna(0)
+        
+        # Hubi in labada tiir ay jiraan si aan graph-ku u hakin
+        if 'Deposit' not in df_grouped.columns: df_grouped['Deposit'] = 0
+        if 'Expense' not in df_grouped.columns: df_grouped['Expense'] = 0
+        
+        # Muujinta shaxda tiirar isgarab taagan (Bar Chart)
+        st.bar_chart(df_grouped[['Deposit', 'Expense']])
     else:
-        st.info("Wax xog ah oo ku jirta Transactions lama helin.")
+        st.info("Ma jirto xog ku filan oo laga sameeyo garaaf.")
 
+    # --- CUSBOONAYSIIN 2: EXPANDER-KA LIISASKA (DEPOSITS & EXPENSES) ---
+    st.markdown("---")
+    
+    # 1. Liiska Deposit-ka oo qarsan (Expander)
+    with st.expander("📅 Eeg Liiska Deposit-ka ee Sannad kasta (Collapsible)"):
+        if not df_tx.empty:
+            df_deposits_only = df_tx[df_tx['Type'] == 'Deposit'].copy()
+            if not df_deposits_only.empty:
+                df_deposits_only['Date'] = pd.to_datetime(df_deposits_only['Date'], errors='coerce')
+                df_deposits_only['Sannad'] = df_deposits_only['Date'].dt.year.fillna(2026).astype(int)
+                
+                years_dep = sorted(df_deposits_only['Sannad'].unique(), reverse=True)
+                selected_year_dep = st.selectbox("Dooro Sannadka Deposit-ka:", years_dep, key="dep_yr_select")
+                
+                df_year_dep = df_deposits_only[df_deposits_only['Sannad'] == selected_year_dep]
+                
+                st.dataframe(df_year_dep[['Date', 'Member_ID', 'Amount', 'Note']], use_container_width=True)
+                st.metric(label=f"Wadarta Deposit-ka Sannadkii {selected_year_dep}", value=f"${df_year_dep['Amount'].sum():,.2f}")
+            else:
+                st.info("Wax deposit ah wali lama gelin.")
+        else:
+            st.info("Wax xog ah lama helin.")
+
+    # 2. Liiska Expenses-ka oo qarsan (Expander)
+    with st.expander("📅 Eeg Liiska Expenses-ka ee Sannad kasta (Collapsible)"):
+        if not df_tx.empty:
+            df_expenses_only = df_tx[df_tx['Type'] == 'Expense'].copy()
+            if not df_expenses_only.empty:
+                df_expenses_only['Date'] = pd.to_datetime(df_expenses_only['Date'], errors='coerce')
+                df_expenses_only['Sannad'] = df_expenses_only['Date'].dt.year.fillna(2026).astype(int)
+                
+                years_exp = sorted(df_expenses_only['Sannad'].unique(), reverse=True)
+                selected_year_exp = st.selectbox("Dooro Sannadka Expenses-ka:", years_exp, key="exp_yr_select")
+                
+                df_year_exp = df_expenses_only[df_expenses_only['Sannad'] == selected_year_exp]
+                
+                st.dataframe(df_year_exp[['Date', 'Member_ID', 'Amount', 'Note']], use_container_width=True)
+                st.metric(label=f"Wadarta Expenses-ka Sannadkii {selected_year_exp}", value=f"${df_year_exp['Amount'].sum():,.2f}")
+            else:
+                st.info("Wax kharash (Expense) ah wali lama gelin.")
+        else:
+            st.info("Wax xog ah lama helin.")
 # --- 2. ADD MEMBER ---
 elif menu == "📝 Add Member":
     st.subheader("Diiwaangali Xubin Cusub")
